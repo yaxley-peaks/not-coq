@@ -1,6 +1,7 @@
 use crate::Expr::*;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::iter::Peekable;
 
 #[allow(dead_code)]
 #[allow(unused)]
@@ -40,7 +41,7 @@ fn substitute_bindings(bindings: &Bindings, expr: &Expr) -> Expr {
         Sym(name) => {
             if let Some(value) = bindings.get(name) {
                 value.clone()
-            }else {
+            } else {
                 expr.clone()
             }
         }
@@ -48,7 +49,7 @@ fn substitute_bindings(bindings: &Bindings, expr: &Expr) -> Expr {
             let new_name = match bindings.get(name) {
                 Some(Sym(new_name)) => new_name,
                 None => name,
-                Some(_) => panic!("Invalid value. Burn in fire")
+                Some(_) => panic!("Invalid value. Burn in fire"),
             };
             let mut new_args = Vec::new();
             for arg in args {
@@ -131,53 +132,43 @@ fn pattern_match(pattern: &Expr, value: &Expr) -> Option<Bindings> {
     }
 }
 
+#[derive(Debug)]
+enum TokenKind {
+    Sym,
+    OpenParen,
+    ClosedParen,
+    Comma,
+    Equals,
+}
+
+#[derive(Debug)]
+struct Token {
+    kind: TokenKind,
+    text: String,
+}
+struct Lexer<Char: Iterator<Item = char>> {
+    chars: Peekable<Char>,
+}
+
+impl<Char: Iterator<Item = char>> Lexer<Char> {
+    fn from_iter(chars: Char) -> Self {
+        Self { chars: chars.peekable() }
+    }
+}
+impl<Char: Iterator<Item = char>> Iterator for Lexer<Char> {
+    type Item = Token;
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
+    }
+}
+
 fn main() {
     /*
         pair(a,b)
         swap(pair(a,b)) = pair(b,a)
     */
-    use Expr::*;
-    let _swap = Rule {
-        head: Fun(
-            "swap".to_string(),
-            vec![Fun(
-                "pair".to_string(),
-                vec![Sym("a".to_string()), Sym("b".to_string())],
-            )],
-        ),
-        body: Fun(
-            "pair".to_string(),
-            vec![Sym("b".to_string()), Sym("a".to_string())],
-        ),
-    };
 
-    let expr = Fun(
-        "foo".to_string(),
-        vec![
-            Fun(
-                "swap".to_string(),
-                vec![Fun(
-                    "pair".to_string(),
-                    vec![
-                        Fun("f".to_string(), vec![Sym("a".to_string())]),
-                        Fun("g".to_string(), vec![Sym("b".to_string())]),
-                    ],
-                )],
-            ),
-            Fun(
-                "swap".to_string(),
-                vec![Fun(
-                    "pair".to_string(),
-                    vec![
-                        Fun("q".to_string(), vec![Sym("c".to_string())]),
-                        Fun("z".to_string(), vec![Sym("d".to_string())]),
-                    ],
-                )],
-            ),
-        ],
-    );
-
-    println!("Rule:         {_swap}");
-    println!("Expression:   {expr}");
-    println!("Expression':  {}", _swap.apply_all(&expr));
+    for token in Lexer::from_iter("swap(pair(a,b)) = pair(b,a)".chars()) {
+        println!("{:?}", token);
+    }
 }
