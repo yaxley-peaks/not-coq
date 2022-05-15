@@ -2,6 +2,7 @@ use crate::Expr::*;
 use std::collections::HashMap;
 use std::fmt::Display;
 
+#[allow(dead_code)]
 #[allow(unused)]
 #[derive(Debug, Clone, PartialEq)]
 enum Expr {
@@ -34,10 +35,52 @@ struct Rule {
     body: Expr,
 }
 
+fn substitute_bindings(bindings: &Bindings, expr: &Expr) -> Expr {
+    match expr {
+        Sym(name) => {
+            if let Some(value) = bindings.get(name) {
+                value.clone()
+            }else {
+                expr.clone()
+            }
+        }
+        Fun(name, args) => {
+            let new_name = match bindings.get(name) {
+                Some(Sym(new_name)) => new_name,
+                None => name,
+                Some(_) => panic!("Invalid value. Burn in fire")
+            };
+            let mut new_args = Vec::new();
+            for arg in args {
+                new_args.push(substitute_bindings(bindings, &arg));
+            }
+            Fun(new_name.clone(), new_args)
+            // todo!()
+        }
+    }
+    // todo!()
+}
+
 impl Rule {
     #[allow(unused)]
-    fn apply_all(&self, expr: Expr) -> Expr {
-        todo!()
+    fn apply_all(&self, expr: &Expr) -> Expr {
+        if let Some(bindings) = pattern_match(&self.head, &expr) {
+            // println!("Match! {:?}", bindings);
+            substitute_bindings(&bindings, &self.body)
+        } else {
+            match expr {
+                Sym(_) => expr.clone(),
+                Fun(name, args) => {
+                    let mut new_args = Vec::new();
+                    for arg in args {
+                        new_args.push(self.apply_all(arg))
+                    }
+                    Fun(name.clone(), new_args)
+                }
+                _ => unreachable!(),
+            }
+            // todo!()
+        }
     }
 }
 
@@ -136,5 +179,5 @@ fn main() {
 
     println!("Rule:         {_swap}");
     println!("Expression:   {expr}");
-    println!("Expression':  {}", _swap.apply_all(expr));
+    println!("Expression':  {}", _swap.apply_all(&expr));
 }
