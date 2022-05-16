@@ -208,9 +208,44 @@ mod tests {
         println!("Rule:         {swap}");
         println!("Expression:   {expr}");
         println!("Expression':  {:?}", swap.apply_all(&expr));
-        
+
         assert_eq!(swap.apply_all(&expr), expected);
-    }   
+    }
+}
+macro_rules! fun_args {
+    () => {
+        vec![]
+    };
+    ($name: ident) => {
+        vec![expr!($name)]
+    };
+    ($name: ident, $($rest: tt)*) => {
+        {
+            let mut t = vec![expr!($name)];
+            t.append(&mut fun_args!($($rest)*));
+            t
+        }
+    };
+    ($name: ident($($args: tt)*)) => {
+        vec![expr!($name($($args)*))]
+    };
+    ($name: ident($($args: tt)*), $($rest: tt)*) => {
+        {
+            let mut t = vec![expr!($name($($args)*))];
+            t.append(&mut fun_args!($($rest)*));
+            t
+        }
+    };
+}
+
+macro_rules! expr {
+    ($name: ident) => {
+        Expr::Sym(stringify!($name).to_string())
+    };
+    ($name: ident($($args: tt)*)) => {
+        Expr::Fun(stringify!($name).to_string(), fun_args!($($args)*))
+    };
+
 }
 
 fn main() {
@@ -222,5 +257,8 @@ fn main() {
     // for token in Lexer::from_iter("swap(pair(a,b)) = pair(b,a)".chars()) {
     //     println!("{:?}", token);
     // }
-    println!("{}", fun!(f));
+    println!("{}", expr!(a));
+    println!("{}", expr!(g(b, a)));
+    println!("{}", expr!(f(g(a))));
+    println!("{}", expr!(f(g(a), k(q,l(a)))));
 }
