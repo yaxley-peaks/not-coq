@@ -11,6 +11,42 @@ enum Expr {
     Fun(String, Vec<Expr>),
 }
 
+impl Expr {
+    fn parse_peekable(lexer: &mut Peekable<impl Iterator<Item=Token>>) -> Self {
+        if let Some(name) = lexer.next(){
+            match name.kind {
+                TokenKind::Sym => {
+                   if let Some(_) = lexer.next_if(|t| t.kind == TokenKind::OpenParen) {
+                       let mut args = Vec::new();
+                        if let Some(_) = lexer.next_if(|t| t.kind == TokenKind::ClosedParen){
+                            return Expr::Fun(name.text, args);
+                        }
+                        args.push(Self::parse_peekable(lexer));
+                        while let Some(_) =  lexer.next_if(|t| t.kind == TokenKind::Comma) {
+                            args.push(Self::parse_peekable(lexer));
+                        }
+                        if lexer.next_if(|t| t.kind == TokenKind::ClosedParen).is_none() {
+                            todo!("Expected Closed paren")
+                        }
+                       Expr::Fun(name.text,args)
+                        // todo!("Parse functor args")
+                    }else {
+                        Expr::Sym(name.text)
+                    }
+                }
+                _ => todo!("Report expected Symbol")
+            }
+        }else {
+
+            todo!("Report end of file Error")
+        }
+    }
+    fn parse(lexer: impl Iterator<Item=Token>) -> Self {
+        Self::parse_peekable(&mut lexer.peekable())
+        // None
+    }
+}
+
 impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -127,7 +163,7 @@ fn pattern_match(pattern: &Expr, value: &Expr) -> Option<Bindings> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 enum TokenKind {
     Sym,
     OpenParen,
@@ -136,11 +172,13 @@ enum TokenKind {
     Equals,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct Token {
     kind: TokenKind,
     text: String,
 }
+#[derive(Clone)]
 struct Lexer<Char: Iterator<Item = char>> {
     chars: Peekable<Char>,
 }
@@ -155,10 +193,47 @@ impl<Char: Iterator<Item = char>> Lexer<Char> {
 impl<Char: Iterator<Item = char>> Iterator for Lexer<Char> {
     type Item = Token;
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        //ignore all spaces
+        while let Some(_) = self.chars.next_if(|x| x.is_whitespace()){}
+
+        if let Some(x) = self.chars.next() {
+            let mut text = String::new();
+            text.push(x);
+            match x {
+                '(' => Some(Token {
+                    kind: TokenKind::OpenParen,
+                    text,
+                }),
+                ')' => Some(Token {
+                    kind: TokenKind::ClosedParen,
+                    text,
+                }),
+                ',' => Some(Token {
+                    kind: TokenKind::Comma,
+                    text,
+                }),
+                '=' => Some(Token {
+                    kind: TokenKind::Equals,
+                    text,
+                }),
+
+                _ => {
+                    if !x.is_alphanumeric() {
+                        panic!("Unexpected Token starts with '{}'", x);
+                    }
+                    while let Some(x) = self.chars.next_if(|x| x.is_alphanumeric()) {
+                        text.push(x);
+                    }
+                    Some(Token{kind: TokenKind::Sym, text})
+                }
+            }
+        } else {
+            None
+        }
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! fun_args {
     () => {
         vec![]
@@ -184,7 +259,7 @@ macro_rules! fun_args {
         }
     };
 }
-
+#[allow(unused_macros)]
 macro_rules! expr {
     ($name: ident) => {
         Expr::Sym(stringify!($name).to_string())
@@ -216,17 +291,15 @@ mod tests {
     }
 }
 
-fn main() {
-    /*
-        pair(a,b)
-        swap(pair(a,b)) = pair(b,a)
-    */
 
-    // for token in Lexer::from_iter("swap(pair(a,b)) = pair(b,a)".chars()) {
-    //     println!("{:?}", token);
-    // }
-    println!("{}", expr!(a));
-    println!("{}", expr!(g(b, a)));
-    println!("{}", expr!(f(g(a))));
-    println!("{}", expr!(f(g(a), k(q, l(a)))));
+fn main() {
+    let lexer = Lexer::from_iter("swap( pair(a, b))".chars());
+
+    let expr = Expr::parse(lexer);
+    let swap = Rule {
+        head: expr!(swap(pair(a, b))),
+        body: expr!(pair(b, a)),
+    };
+
+    println!("{}", swap.apply_all(&expr));
 }
