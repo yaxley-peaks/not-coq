@@ -56,17 +56,14 @@ fn substitute_bindings(bindings: &Bindings, expr: &Expr) -> Expr {
                 new_args.push(substitute_bindings(bindings, &arg));
             }
             Fun(new_name.clone(), new_args)
-            // todo!()
         }
     }
-    // todo!()
 }
 
 impl Rule {
     #[allow(unused)]
     fn apply_all(&self, expr: &Expr) -> Expr {
         if let Some(bindings) = pattern_match(&self.head, &expr) {
-            // println!("Match! {:?}", bindings);
             substitute_bindings(&bindings, &self.body)
         } else {
             match expr {
@@ -80,7 +77,6 @@ impl Rule {
                 }
                 _ => unreachable!(),
             }
-            // todo!()
         }
     }
 }
@@ -97,7 +93,6 @@ fn pattern_match(pattern: &Expr, value: &Expr) -> Option<Bindings> {
     fn pattern_match_impl(pattern: &Expr, value: &Expr, bindings: &mut Bindings) -> bool {
         match (pattern, value) {
             (Sym(name), _) => {
-                //Check if variables don't have the same name
                 if let Some(bound_value) = bindings.get(name) {
                     if bound_value == value {
                         true
@@ -152,7 +147,9 @@ struct Lexer<Char: Iterator<Item = char>> {
 
 impl<Char: Iterator<Item = char>> Lexer<Char> {
     fn from_iter(chars: Char) -> Self {
-        Self { chars: chars.peekable() }
+        Self {
+            chars: chars.peekable(),
+        }
     }
 }
 impl<Char: Iterator<Item = char>> Iterator for Lexer<Char> {
@@ -162,13 +159,68 @@ impl<Char: Iterator<Item = char>> Iterator for Lexer<Char> {
     }
 }
 
+/// Constructs an `Expr::Sym`.
+///
+/// ```rs
+/// sym!(a) = Expr::Sym("a".to_string())
+/// ```
+macro_rules! sym {
+    ($name: ident) => {
+        Sym(stringify!($name).to_string())
+    };
+}
+
+/// Constructs an `Expr::Fun`
+///
+/// ```rs
+/// fun!(f, b) = Expr::Fun("f".to_string(), vec![b])
+/// ```
+macro_rules! fun {
+    ($name: ident) => {
+        Expr::Fun(stringify!($name).to_string(), vec![])
+    };
+    ($name: ident, $($args: expr),*) => {
+        Expr::Fun(stringify!($name).to_string(), vec![$($args),*])
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    pub fn rule_apply_all() {
+        use super::Expr::*;
+        let swap = Rule {
+            head: fun!(swap, fun!(pair, sym!(a), sym!(b))),
+            body: fun!(pair, sym!(b), sym!(a)),
+        };
+
+        let expr = fun!(
+            foo,
+            fun!(swap, fun!(pair, fun!(f, sym!(a)), fun!(g, sym!(b)))),
+            fun!(swap, fun!(pair, fun!(q, sym!(c)), fun!(z, sym!(d))))
+        );
+        let expected = fun!(
+            foo,
+            fun!(pair, fun!(g, sym!(b)), fun!(f, sym!(a))),
+            fun!(pair, fun!(z, sym!(d)), fun!(q, sym!(c)))
+        );
+        println!("Rule:         {swap}");
+        println!("Expression:   {expr}");
+        println!("Expression':  {:?}", swap.apply_all(&expr));
+        
+        assert_eq!(swap.apply_all(&expr), expected);
+    }   
+}
+
 fn main() {
     /*
         pair(a,b)
         swap(pair(a,b)) = pair(b,a)
     */
 
-    for token in Lexer::from_iter("swap(pair(a,b)) = pair(b,a)".chars()) {
-        println!("{:?}", token);
-    }
+    // for token in Lexer::from_iter("swap(pair(a,b)) = pair(b,a)".chars()) {
+    //     println!("{:?}", token);
+    // }
+    println!("{}", fun!(f));
 }
