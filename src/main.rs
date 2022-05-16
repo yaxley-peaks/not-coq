@@ -159,59 +159,6 @@ impl<Char: Iterator<Item = char>> Iterator for Lexer<Char> {
     }
 }
 
-/// Constructs an `Expr::Sym`.
-///
-/// ```rs
-/// sym!(a) = Expr::Sym("a".to_string())
-/// ```
-macro_rules! sym {
-    ($name: ident) => {
-        Sym(stringify!($name).to_string())
-    };
-}
-
-/// Constructs an `Expr::Fun`
-///
-/// ```rs
-/// fun!(f, b) = Expr::Fun("f".to_string(), vec![b])
-/// ```
-macro_rules! fun {
-    ($name: ident) => {
-        Expr::Fun(stringify!($name).to_string(), vec![])
-    };
-    ($name: ident, $($args: expr),*) => {
-        Expr::Fun(stringify!($name).to_string(), vec![$($args),*])
-    };
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    pub fn rule_apply_all() {
-        use super::Expr::*;
-        let swap = Rule {
-            head: fun!(swap, fun!(pair, sym!(a), sym!(b))),
-            body: fun!(pair, sym!(b), sym!(a)),
-        };
-
-        let expr = fun!(
-            foo,
-            fun!(swap, fun!(pair, fun!(f, sym!(a)), fun!(g, sym!(b)))),
-            fun!(swap, fun!(pair, fun!(q, sym!(c)), fun!(z, sym!(d))))
-        );
-        let expected = fun!(
-            foo,
-            fun!(pair, fun!(g, sym!(b)), fun!(f, sym!(a))),
-            fun!(pair, fun!(z, sym!(d)), fun!(q, sym!(c)))
-        );
-        println!("Rule:         {swap}");
-        println!("Expression:   {expr}");
-        println!("Expression':  {:?}", swap.apply_all(&expr));
-
-        assert_eq!(swap.apply_all(&expr), expected);
-    }
-}
 macro_rules! fun_args {
     () => {
         vec![]
@@ -248,6 +195,27 @@ macro_rules! expr {
 
 }
 
+#[cfg(test)]
+#[macro_use]
+mod tests {
+    use super::*;
+    #[test]
+    pub fn rule_apply_all() {
+        let swap = Rule {
+            head: expr!(swap(pair(a, b))),
+            body: expr!(pair(b, a)),
+        };
+
+        let expr = expr!(foo(swap(pair(f(a), g(b))), swap(pair(q(z), k(y)))));
+        let expected = expr!(foo(pair(g(b), f(a)), pair(k(y), q(z))));
+        println!("Rule:         {swap}");
+        println!("Expression:   {expr}");
+        println!("Expression':  {}", swap.apply_all(&expr));
+
+        assert_eq!(swap.apply_all(&expr), expected);
+    }
+}
+
 fn main() {
     /*
         pair(a,b)
@@ -260,5 +228,5 @@ fn main() {
     println!("{}", expr!(a));
     println!("{}", expr!(g(b, a)));
     println!("{}", expr!(f(g(a))));
-    println!("{}", expr!(f(g(a), k(q,l(a)))));
+    println!("{}", expr!(f(g(a), k(q, l(a)))));
 }
