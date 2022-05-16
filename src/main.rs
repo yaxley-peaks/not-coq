@@ -1,6 +1,7 @@
 use crate::Expr::*;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::io::{stdin, stdout, Write};
 use std::iter::Peekable;
 
 #[allow(dead_code)]
@@ -12,36 +13,38 @@ enum Expr {
 }
 
 impl Expr {
-    fn parse_peekable(lexer: &mut Peekable<impl Iterator<Item=Token>>) -> Self {
-        if let Some(name) = lexer.next(){
+    fn parse_peekable(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Self {
+        if let Some(name) = lexer.next() {
             match name.kind {
                 TokenKind::Sym => {
-                   if let Some(_) = lexer.next_if(|t| t.kind == TokenKind::OpenParen) {
-                       let mut args = Vec::new();
-                        if let Some(_) = lexer.next_if(|t| t.kind == TokenKind::ClosedParen){
+                    if let Some(_) = lexer.next_if(|t| t.kind == TokenKind::OpenParen) {
+                        let mut args = Vec::new();
+                        if let Some(_) = lexer.next_if(|t| t.kind == TokenKind::ClosedParen) {
                             return Expr::Fun(name.text, args);
                         }
                         args.push(Self::parse_peekable(lexer));
-                        while let Some(_) =  lexer.next_if(|t| t.kind == TokenKind::Comma) {
+                        while let Some(_) = lexer.next_if(|t| t.kind == TokenKind::Comma) {
                             args.push(Self::parse_peekable(lexer));
                         }
-                        if lexer.next_if(|t| t.kind == TokenKind::ClosedParen).is_none() {
+                        if lexer
+                            .next_if(|t| t.kind == TokenKind::ClosedParen)
+                            .is_none()
+                        {
                             todo!("Expected Closed paren")
                         }
-                       Expr::Fun(name.text,args)
+                        Expr::Fun(name.text, args)
                         // todo!("Parse functor args")
-                    }else {
+                    } else {
                         Expr::Sym(name.text)
                     }
                 }
-                _ => todo!("Report expected Symbol")
+                _ => todo!("Report expected Symbol"),
             }
-        }else {
-
+        } else {
             todo!("Report end of file Error")
         }
     }
-    fn parse(lexer: impl Iterator<Item=Token>) -> Self {
+    fn parse(lexer: impl Iterator<Item = Token>) -> Self {
         Self::parse_peekable(&mut lexer.peekable())
         // None
     }
@@ -163,7 +166,7 @@ fn pattern_match(pattern: &Expr, value: &Expr) -> Option<Bindings> {
     }
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 enum TokenKind {
     Sym,
     OpenParen,
@@ -194,7 +197,7 @@ impl<Char: Iterator<Item = char>> Iterator for Lexer<Char> {
     type Item = Token;
     fn next(&mut self) -> Option<Self::Item> {
         //ignore all spaces
-        while let Some(_) = self.chars.next_if(|x| x.is_whitespace()){}
+        while let Some(_) = self.chars.next_if(|x| x.is_whitespace()) {}
 
         if let Some(x) = self.chars.next() {
             let mut text = String::new();
@@ -224,7 +227,10 @@ impl<Char: Iterator<Item = char>> Iterator for Lexer<Char> {
                     while let Some(x) = self.chars.next_if(|x| x.is_alphanumeric()) {
                         text.push(x);
                     }
-                    Some(Token{kind: TokenKind::Sym, text})
+                    Some(Token {
+                        kind: TokenKind::Sym,
+                        text,
+                    })
                 }
             }
         } else {
@@ -291,15 +297,25 @@ mod tests {
     }
 }
 
-
 fn main() {
-    let lexer = Lexer::from_iter("swap( pair(a, b))".chars());
+    // let lexer = Lexer::from_iter("swap( pair(a, b))".chars());
 
-    let expr = Expr::parse(lexer);
+    // let expr = Expr::parse(lexer);
     let swap = Rule {
         head: expr!(swap(pair(a, b))),
         body: expr!(pair(b, a)),
     };
 
-    println!("{}", swap.apply_all(&expr));
+    let mut command = String::new();
+    let mut quit = false;
+
+    while !quit {
+        command.clear();
+        print!("> ");
+        stdout().flush().unwrap();
+        stdin().read_line(&mut command).unwrap();
+        println!("{}",swap.apply_all(&Expr::parse(Lexer::from_iter(command.chars()))));
+    }
+
+    // println!("{}", swap.apply_all(&expr));
 }
